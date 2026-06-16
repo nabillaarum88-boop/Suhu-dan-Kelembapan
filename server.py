@@ -24,6 +24,7 @@ def read_arduino():
                         "heatindex": float(parts[3]),
                         "dewpoint": float(parts[4]),
                         "status": parts[5]
+                    }
                   Exception as e:
         print(f"Error Serial: {e}")
 
