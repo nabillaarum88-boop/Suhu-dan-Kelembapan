@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IoT Monitor — DHT11 Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== NAVBAR ===== -->
+<nav>
+  <div class="nav-brand">
+    <span>⚡</span>
+    IoT Monitor
+    <span style="font-size:12px;color:var(--muted);font-weight:400">DHT11 / Arduino Uno</span>
+  </div>
+  <div class="nav-right">
+    <div class="status-pill">
+      <div class="dot"></div> Online — Simulasi
+    </div>
+    <div class="time-badge" id="clockBadge">--:--:--</div>
+  </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main>
+
+  <!-- Page title -->
+  <div class="page-title">
+    <h1>Dashboard Monitoring Real-Time</h1>
+    <p>Sensor suhu &amp; kelembapan DHT11 · Data diperbarui otomatis setiap interval</p>
+  </div>
+
+  <!-- Controls bar -->
+  <div class="controls-bar">
+    <span class="ctrl-label">Interval:</span>
+    <button class="ctrl-btn active" onclick="setIv(2000, this)">2 detik</button>
+    <button class="ctrl-btn"        onclick="setIv(5000, this)">5 detik</button>
+    <button class="ctrl-btn"        onclick="setIv(10000, this)">10 detik</button>
+    <div class="ctrl-sep"></div>
+    <span class="ctrl-label">Data:</span>
+    <span id="pointsCount" class="counter-badge">0 titik</span>
+    <button class="dl-btn" onclick="downloadCSV()">⬇ Unduh CSV</button>
+  </div>
+
+  <!-- Metric cards -->
+  <div class="metrics">
+    <div class="metric-card mc-temp">
+      <div class="metric-label"><span class="metric-icon">🌡</span> Suhu</div>
+      <div class="metric-value" id="mTemp">--°C</div>
+      <div class="metric-sub"  id="mTempSub">Menunggu data...</div>
+      <div class="metric-bar"><div class="metric-bar-fill" id="barTemp" style="width:0%"></div></div>
+    </div>
+    <div class="metric-card mc-hum">
+      <div class="metric-label"><span class="metric-icon">💧</span> Kelembapan</div>
+      <div class="metric-value" id="mHum">--%</div>
+      <div class="metric-sub"  id="mHumSub">Menunggu data...</div>
+      <div class="metric-bar"><div class="metric-bar-fill" id="barHum" style="width:0%"></div></div>
+    </div>
+    <div class="metric-card mc-hi">
+      <div class="metric-label"><span class="metric-icon">🔥</span> Heat Index</div>
+      <div class="metric-value" id="mHI">--°C</div>
+      <div class="metric-sub">Suhu terasa seperti</div>
+      <div class="metric-bar"><div class="metric-bar-fill" id="barHI" style="width:0%"></div></div>
+    </div>
+    <div class="metric-card mc-dew">
+      <div class="metric-label"><span class="metric-icon">🌫</span> Dew Point</div>
+      <div class="metric-value" id="mDew">--°C</div>
+      <div class="metric-sub">Titik embun</div>
+      <div class="metric-bar"><div class="metric-bar-fill" id="barDew" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Gauge -->
+  <div class="gauge-row">
+    <div class="gauge-card">
+      <div class="card-title" style="margin-bottom:10px">Suhu (°C) — Range 0–50°C</div>
+      <div class="gauge-wrap">
+        <canvas id="gTemp" width="200" height="110" role="img" aria-label="Gauge suhu"></canvas>
+        <div class="gauge-center">
+          <div class="gauge-num t-orange" id="gTempV">--</div>
+          <div class="gauge-unit">°C</div>
+        </div>
+      </div>
+    </div>
+    <div class="gauge-card">
+      <div class="card-title" style="margin-bottom:10px">Kelembapan (%) — Range 0–100%</div>
+      <div class="gauge-wrap">
+        <canvas id="gHum" width="200" height="110" role="img" aria-label="Gauge kelembapan"></canvas>
+        <div class="gauge-center">
+          <div class="gauge-num t-blue" id="gHumV">--</div>
+          <div class="gauge-unit">%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📈 Grafik Suhu Real-Time</span>
+        <span style="font-size:11px;color:var(--orange)">°C</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="cTemp" role="img" aria-label="Grafik suhu real-time">Data suhu real-time.</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📈 Grafik Kelembapan Real-Time</span>
+        <span style="font-size:11px;color:var(--blue)">%</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="cHum" role="img" aria-label="Grafik kelembapan real-time">Data kelembapan real-time.</canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert + Log -->
+  <div class="bottom-row">
+
+    <!-- Notifikasi -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🔔 Notifikasi &amp; Alert</span>
+        <span id="alertBadge"
+          style="font-size:10px;background:var(--bg3);border:1px solid var(--border);
+                 color:var(--muted);padding:2px 8px;border-radius:20px;font-family:monospace">
+          0
+        </span>
+      </div>
+      <div class="alert-list" id="alertList">
+        <div class="alert-item al-normal">
+          <div class="alert-dot"></div>
+          <div class="alert-msg">
+            <strong>Sistem aktif</strong>
+            Menunggu data dari sensor...
+          </div>
+          <div class="alert-time">--:--:--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log data -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📋 Log Data Sensor</span>
+        <span id="logBadge"
+          style="font-size:10px;background:var(--bg3);border:1px solid var(--border);
+                 color:var(--muted);padding:2px 8px;border-radius:20px;font-family:monospace">
+          0 entri
+        </span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Waktu</th>
+              <th>Suhu °C</th>
+              <th>Hum %</th>
+              <th>HI °C</th>
+              <th>Dew °C</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- .bottom-row -->
+</main>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
